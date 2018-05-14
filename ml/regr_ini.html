@@ -1,0 +1,56 @@
+<html>
+<head>
+		
+		<script src="numeric.js"></script>
+</head>
+<body>
+	<script>
+		//http://reliawiki.org/index.php/Multiple_Linear_Regression_Analysis
+		//https://github.com/christophertrml/jsRegress/blob/master/lib/regression.js
+		//http://www.numericjs.com/
+
+function convertData(matrix) {
+  var Ym = [];
+  matrix.forEach(function(equations) {
+    Ym.push(equations[0]);
+    equations[0] = 1;
+  });
+  var obj = {
+    X: matrix,
+    Y: Ym
+  };
+  return obj;
+}
+
+function regr(data){
+	var result = {};
+	var conv = convertData(data);
+	var X = conv.X;
+	var Y = conv.Y
+	var X_T = numeric.transpose(X);
+	var multipliedXMatrix = numeric.dot(X_T,X);
+	var LeftSide = numeric.inv(multipliedXMatrix);
+	var RightSide = numeric.dot(X_T,Y);
+	result.beta = numeric.dot(LeftSide,RightSide);
+	var yhat = numeric.dot(X, result.beta);
+	result.residual = numeric.sub(Y, yhat);
+
+	return result;
+}
+
+
+function reqListener () {
+  stationData = JSON.parse(this.responseText);
+	var regrParams = stationData.map(function(d){return [d.temp, d.alt, d.dist]});
+	console.info(regr(regrParams))
+}
+
+var oReq = new XMLHttpRequest();
+oReq.addEventListener("load", reqListener);
+oReq.open("GET", "out.json");
+oReq.send();
+
+
+		</script>
+</body>
+</html>

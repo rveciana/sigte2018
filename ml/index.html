@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<head>
+		<script src="geotiff.min.js"></script>
+		<script src="numeric.js"></script>
+		<script src="gpu.min.js"></script>
+		<script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"
+		integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
+		crossorigin=""></script>
+		<script src="canvasOverlay.js"></script>
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
+   integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ=="
+   crossorigin=""/>
+</head>
+<body>
+		<div id="mapid" style="height: 600px;"></div>
+	<script>
+		//http://reliawiki.org/index.php/Multiple_Linear_Regression_Analysis
+		//https://github.com/christophertrml/jsRegress/blob/master/lib/regression.js
+		//http://www.numericjs.com/
+
+var tiffFile = "vars.tiff";
+var stationFile = "station_data.json";
+
+function getColorResidues(d) {
+    return d < -4? '#f44242' :
+           d < -3  ? '#ed663d' :
+           d < -2  ? '#f78f40' :
+           d < -1  ? '#efe33e' :
+           d < 0   ? '#51ed40' :
+           d < 1   ? '#41ea90' :
+		   d < 2   ? '#40e8cc' :
+		   d < 3   ? '#3ebde0' :
+		   d < 4   ? '#3870d8' :
+		   '#3422bf';
+}
+function residuesColorScale(){
+var cs_def = {positions: [0,0.125,0.25,0.375,0.5,0.625,0.75,0.875,1], colors:[
+	'#f44242', '#ed663d', '#f78f40', '#efe33e', '#51ed40', '#41ea90', '#40e8cc', '#3ebde0', '#3870d8'
+	]};
+	var canvasColorScale = document.createElement('canvas');
+	canvasColorScale.width = 256;
+	canvasColorScale.height = 1;
+	canvasColorScale.style.display = "none";
+	var contextColorScale = canvasColorScale.getContext("2d");
+	var gradient = contextColorScale.createLinearGradient(0, 0, 256, 1);
+
+	for (var i = 0; i < cs_def.colors.length; ++i) {
+		gradient.addColorStop(cs_def.positions[i], cs_def.colors[i]);
+	}
+	contextColorScale.fillStyle = gradient;
+	contextColorScale.fillRect(0, 0, 256, 1);
+
+	return contextColorScale.getImageData(0, 0, 255, 1).data;
+}
+function getColorTemp(value){
+	let cs_def = {positions: [0.0, 0.030303030303030304, 0.06060606060606061, 0.09090909090909091, 0.12121212121212122, 0.15151515151515152, 0.18181818181818182, 0.21212121212121213, 0.24242424242424243, 0.2727272727272727, 0.30303030303030304, 0.3333333333333333, 0.36363636363636365, 0.3939393939393939, 0.42424242424242425, 0.45454545454545453, 0.48484848484848486, 0.5151515151515151, 0.5454545454545454, 0.5757575757575758, 0.6060606060606061, 0.6363636363636364, 0.6666666666666666, 0.696969696969697, 0.7272727272727273, 0.7575757575757576, 0.7878787878787878, 0.8181818181818182, 0.8484848484848485, 0.8787878787878788, 0.9090909090909091, 0.9393939393939394, 0.9696969696969697, 1], colors:['#7f807e', '#5d5d5c', '#0000a8', '#4216ca', '#502ebd', '#5d45af', '#6e5ea0', '#640064', '#7e267e', '#9b4f9b', '#ba7aba', '#cd96cd', '#ccffff', '#a4ecef', '#86d8d9', '#6ac2d1', '#419dab', '#01862d', '#03c228', '#00ff40', '#7bf17b', '#c9ff94', '#f1f288', '#f1cf65', '#f0ab41', '#f08a1f', '#f06b00', '#ff6666', '#ff4646', '#ff0000', '#b22222', '#9b0000', '#730000', '#4f0000']};
+	let idx = cs_def.positions.findIndex(function(d){return d >= (value + 7)/20});
+	return cs_def.colors[idx];
+}
+
+function tempColorScale(){
+	var cs_def = {positions: [0.0, 0.030303030303030304, 0.06060606060606061, 0.09090909090909091, 0.12121212121212122, 0.15151515151515152, 0.18181818181818182, 0.21212121212121213, 0.24242424242424243, 0.2727272727272727, 0.30303030303030304, 0.3333333333333333, 0.36363636363636365, 0.3939393939393939, 0.42424242424242425, 0.45454545454545453, 0.48484848484848486, 0.5151515151515151, 0.5454545454545454, 0.5757575757575758, 0.6060606060606061, 0.6363636363636364, 0.6666666666666666, 0.696969696969697, 0.7272727272727273, 0.7575757575757576, 0.7878787878787878, 0.8181818181818182, 0.8484848484848485, 0.8787878787878788, 0.9090909090909091, 0.9393939393939394, 0.9696969696969697, 1], colors:['#7f807e', '#5d5d5c', '#0000a8', '#4216ca', '#502ebd', '#5d45af', '#6e5ea0', '#640064', '#7e267e', '#9b4f9b', '#ba7aba', '#cd96cd', '#ccffff', '#a4ecef', '#86d8d9', '#6ac2d1', '#419dab', '#01862d', '#03c228', '#00ff40', '#7bf17b', '#c9ff94', '#f1f288', '#f1cf65', '#f0ab41', '#f08a1f', '#f06b00', '#ff6666', '#ff4646', '#ff0000', '#b22222', '#9b0000', '#730000', '#4f0000']};
+  var canvasColorScale = document.createElement('canvas');
+  canvasColorScale.width = 256;
+  canvasColorScale.height = 1;
+  canvasColorScale.style.display = "none";
+  var contextColorScale = canvasColorScale.getContext("2d");
+  var gradient = contextColorScale.createLinearGradient(0, 0, 256, 1);
+
+  for (var i = 0; i < cs_def.colors.length; ++i) {
+    gradient.addColorStop(cs_def.positions[i], cs_def.colors[i]);
+  }
+  contextColorScale.fillStyle = gradient;
+  contextColorScale.fillRect(0, 0, 256, 1);
+
+  return contextColorScale.getImageData(0, 0, 255, 1).data;
+}
+
+function convertData(matrix) {
+  var Ym = [];
+  matrix.forEach(function(equations) {
+    Ym.push(equations[0]);
+    equations[0] = 1;
+  });
+  var obj = {
+    X: matrix,
+    Y: Ym
+  };
+  return obj;
+}
+
+function regr(data){
+	var result = {};
+	var conv = convertData(data);
+	var X = conv.X;
+	var Y = conv.Y
+	var X_T = numeric.transpose(X);
+	var multipliedXMatrix = numeric.dot(X_T,X);
+	var LeftSide = numeric.inv(multipliedXMatrix);
+	var RightSide = numeric.dot(X_T,Y);
+	result.beta = numeric.dot(LeftSide,RightSide);
+	var yhat = numeric.dot(X, result.beta);
+	result.residual = numeric.sub(Y, yhat);
+
+	return result;
+}
+
+
+function drawInterpolation(canvasOverlay, params){
+	let canvas = params.canvas;
+	let context = canvas.getContext('2d');
+	context.clearRect(0, 0, canvas.width, canvas.height);
+  context.globalAlpha = 1;
+	let geoTransformCanvas = [params.bounds._southWest.lng, (params.bounds._northEast.lng - params.bounds._southWest.lng)/canvas.width, 0,
+		params.bounds._northEast.lat, 0,(params.bounds._southWest.lat - params.bounds._northEast.lat)/canvas.height];
+
+	gpu = new GPU();
+	const drawInterpolationGPU = gpu.createKernel(function(temperature, geoTransformTemp, geoTransformCanvas, colorScale) {
+		let lon = geoTransformCanvas[0] + geoTransformCanvas[1] * this.thread.x;
+		let lat = geoTransformCanvas[3] + geoTransformCanvas[5] * (this.constants.canvasHeight - this.thread.y);
+		let pxTemp = (lon - geoTransformTemp[0]) / geoTransformTemp[1];
+		let pyTemp = (lat - geoTransformTemp[3]) / geoTransformTemp[5];
+		if(pxTemp > 0 && pyTemp > 0 && pxTemp < this.constants.width && pyTemp < this.constants.height){
+			let color = Math.ceil(255 * (temperature[pyTemp][pxTemp] - this.constants.minVal)/(this.constants.maxVal - this.constants.minVal));
+			this.color(colorScale[color * 4]/255, colorScale[1+color * 4]/255, colorScale[2+color * 4]/255, 1);
+		} else {
+			this.color(1, 1, 1, 0);
+		}
+	})
+	.setConstants({ width: params.options.values[0].length, height: params.options.values.length,
+	                canvasHeight: canvas.height, minVal: params.options.scale_limits[0], maxVal: params.options.scale_limits[1]})
+    .setOutput([canvas.width, canvas.height])
+	.setGraphical(true);
+
+	drawInterpolationGPU(params.options.values, params.options.geoTransform, geoTransformCanvas, params.options.scale);
+	let result = drawInterpolationGPU.getCanvas();
+	context.drawImage(result, 0, 0);
+}
+
+
+function requestAsync(url, responseType) {
+    return new Promise(function(resolve, reject) {
+			var xhr = new XMLHttpRequest();
+			xhr.open("GET", url);
+			xhr.responseType = responseType;
+			xhr.onload = function () {
+				if (this.status >= 200 && this.status < 300) {
+					resolve({'url': url, 'response': xhr.response});
+				} else {
+					reject({
+						status: this.status,
+						statusText: xhr.statusText
+					});
+				}
+			};
+			xhr.onerror = function () {
+				reject({
+					status: this.status,
+					statusText: xhr.statusText
+				});
+			};
+			xhr.send();
+        
+    });
+}
+Promise.all([requestAsync(stationFile, ''), requestAsync(tiffFile, 'arraybuffer')])
+    .then(function(allData) {
+		stationData = JSON.parse(allData.find(function(d){return d.url === stationFile;}).response);
+		/**************************
+		* Reading the GeoTIFF
+		*/
+		var tiff = GeoTIFF.parse(allData.find(function(d){return d.url === tiffFile;}).response);
+		var image = tiff.getImage();
+		var tiffWidth = image.getWidth();
+		var tiffHeight = image.getHeight();
+		var rasters = image.readRasters();
+		var tiepoint = image.getTiePoints()[0];
+		var pixelScale = image.getFileDirectory().ModelPixelScale;
+		var geoTransform = [tiepoint.x, pixelScale[0], 0, tiepoint.y, 0, -1*pixelScale[1]];
+
+		var map = L.map('mapid').setView([41.4, 1], 8);
+				
+		var layersControl = L.control.layers(null, null).addTo(map);
+		calculateAndDraw(stationData, rasters, tiffWidth, tiffHeight, geoTransform, map, layersControl);
+
+	
+    });
+
+function calculateAndDraw(stationData, rasters, tiffWidth, tiffHeight, geoTransform, map, layersControl){
+				map.eachLayer(function (layer) {
+					layersControl.removeLayer(layer);
+					map.removeLayer(layer);
+					layer = null;
+				});
+				map.removeControl(layersControl);
+				var layersControl = L.control.layers(null, null).addTo(map);
+				
+				var baseLayer = L.tileLayer('http://{s}.tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png', {
+					maxZoom: 18,
+					attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+				}).addTo(map);
+				/***************************
+				 * Linear regression
+				 */
+			    let initDate = new Date();
+				var regrParams = stationData.map(function(d){return [d.temp, d.alt, d.dist]});
+				var regr_result = regr(regrParams);
+				console.info("Regression time: " + (new Date() - initDate) + " ms");
+				
+
+				let initRegressionFieldDate = new Date();
+				let gpu = new GPU();
+	
+				const calculateInterp = gpu.createKernel(function(altitude, dist, regrCoefs) {
+					return regrCoefs[0] + regrCoefs[1] * altitude[this.thread.y][this.thread.x] + regrCoefs[2] * dist[this.thread.y][this.thread.x];
+				})
+				.setOutput([tiffWidth, tiffHeight]);
+
+				let interpResult = calculateInterp(
+				 GPU.input(Float32Array.from(rasters[1]), [1000, 968]),
+				 GPU.input(Float32Array.from(rasters[0]), [1000, 968]),
+				 regr_result.beta);
+				console.info("Regression Field time: " + (new Date() - initRegressionFieldDate) + " ms");
+
+			
+				let xPos = [];
+				let yPos = [];
+				let residues = [];
+				stationData.forEach(function(d, i){
+					xPos.push((d.lon - geoTransform[0])/geoTransform[1]);
+					yPos.push((d.lat - geoTransform[3])/geoTransform[5]);				
+					residues.push(regr_result.residual[i]);
+				});
+				
+				let initResiduesFieldDate = new Date();
+				gpu = new GPU();
+				const calculateResidues = gpu.createKernel(function(xpos, ypos, values) {
+					var nominator=0;
+					var denominator=0;
+					var flagDist = -1;
+					
+					for (var i = 0; i < this.constants.numPoints; i++) {
+						
+						var dist = 5 + Math.sqrt((this.thread.x-xpos[i])*(this.thread.x-xpos[i])+
+							(this.thread.y-ypos[i])*(this.thread.y-ypos[i]) + 2);
+							nominator=nominator+(values[i]/dist)
+							denominator=denominator+(1/dist)
+							
+						
+					}
+					var value;
+					if(flagDist >= 0){
+						value = values[flagDist];
+					} else {
+						value = nominator/denominator;
+					}
+					return value;
+									
+				})
+				.setConstants({ numPoints: xPos.length, tiffWidth: tiffWidth, tiffHeight: tiffHeight })
+				.setOutput([tiffWidth, tiffHeight]);
+
+				let residuesResult = calculateResidues(xPos, yPos, residues);
+				console.info("Residues Field time: " + (new Date() - initResiduesFieldDate) + " ms");
+				let initaddResiduesDate = new Date();
+				const addResidues = gpu.createKernel(function(interpResult, residuesResult) {
+					return interpResult[this.thread.y][this.thread.x] - residuesResult[this.thread.y][this.thread.x];
+				})
+				.setOutput([tiffWidth, tiffHeight]);
+
+				let temperatureField = addResidues(interpResult, residuesResult);
+				console.info("Add Residues time: " + (new Date() - initaddResiduesDate) + " ms");
+				console.info("Total time: " + (new Date() - initDate) + " ms");
+				
+
+				/*************************
+				 * Draw the map
+				 * */
+								
+				var stationValuesLayer = L.layerGroup().addTo(map);
+				layersControl.addOverlay(stationValuesLayer, "Valores Temp.")
+				var stationErrorsLayer = L.layerGroup();
+				layersControl.addOverlay(stationErrorsLayer, "Residuos")
+				var interpLayer = L.canvasOverlay()
+					.params({
+						 'geoTransform': geoTransform,
+						 'values': interpResult,
+						 'scale': tempColorScale(),
+						 'scale_limits': [-7, 20]
+						})
+						.drawing(drawInterpolation);
+				layersControl.addOverlay(interpLayer, "Interpolación Temperatura")
+					
+				var residuesLayer = L.canvasOverlay()
+					.params({
+						 'geoTransform': geoTransform,
+						 'values': residuesResult,
+						 'scale': residuesColorScale(),
+						 'scale_limits': [-4, 4]
+						})
+						.drawing(drawInterpolation);
+				layersControl.addOverlay(residuesLayer, "Interpolación Residuos")
+
+					var temperatureLayer = L.canvasOverlay()
+					.params({
+						 'geoTransform': geoTransform,
+						 'values': temperatureField,
+						 'scale': tempColorScale(),
+						 'scale_limits': [-7, 20]
+						})
+						.drawing(drawInterpolation);
+			
+				layersControl.addOverlay(temperatureLayer, "Temperatura corregida")
+				var overlayMaps = {
+						"Valores estaciones": stationValuesLayer,
+						"Residuos estaciones": stationErrorsLayer,
+						"Interpolación": interpLayer,
+						"Residuos": residuesLayer,
+						"Temperatura": temperatureLayer
+		  	};
+				
+
+				stationData.forEach(function(d, i){
+					var icon = L.divIcon({className: 'station-label', 
+						html: "<span style='color:"+getColorTemp(d.temp)+"; text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black; font-weight: bold; text-size: 15px'>"+d.temp+"</span>"});
+					L.marker([d.lat, d.lon], {icon: icon}).addTo(stationValuesLayer);
+
+					var residueMarker = L.circle([d.lat, d.lon], {
+					color: getColorResidues(regr_result.residual[i]),
+					fillColor: getColorResidues(regr_result.residual[i]),
+					fillOpacity: 0.5,
+					radius: 2000
+					}).addTo(stationErrorsLayer);
+
+					var container = document.createElement("div");
+					container.innerHTML = d.code + ": " + regr_result.residual[i].toFixed(2);
+					var link = document.createElement("a");
+					link.innerHTML = "<br/>Eliminar";
+					container.appendChild(link);
+					link.addEventListener("click", function(){
+						console.info("ELIMINATE " + d.code);
+						console.info(stationData.length);
+						stationData = stationData.filter(function(code){return code.code !== d.code;});
+						console.info(stationData.length);
+						calculateAndDraw(stationData, rasters, tiffWidth, tiffHeight, geoTransform, map, layersControl);
+					});
+					residueMarker.bindPopup(container);
+
+				});
+			
+}
+
+		</script>
+</body>
+</html>
+
