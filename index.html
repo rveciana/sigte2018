@@ -35,7 +35,9 @@
 				</section>
 				<section id="usando_gpu"><h2>usando gpu<b style="font-size: 15px">.js</b></h2>
 					<img src="slides/images/gpu.png" height="150px">
-					<img src="slides/images/gpu2.gif" height="150px" ></section>
+					<img src="slides/images/gpu2.gif" height="150px" >
+					<p class="fragment" data-fragment-index="0">Cálculos raster fácilmente paralelizables</p>
+				</section>
 				</section>
 				<section id="webgl"><h2>WebGL</h2>
 					<img src="slides/images/webgl.png" height="200px" class="fragment" data-fragment-index="0">
@@ -123,6 +125,14 @@ const c = matMult(a, b);
 			<section id="ejemplo4">
 				<h3><a href="ml">ejemplo</a></h3>
 			</section>
+			<section id="benchmark">
+					<h3>Tiempos</h3>
+					<ul>
+						<li>Python: ~50 s</li>
+						<li>Python + Cython: ~4 s</li>
+						<li>GPU.js: ~1 s</li>
+					</ul>
+				</section>
 			</div>
 		</div>
 
