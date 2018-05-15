@@ -23,21 +23,19 @@
 var tiffFile = "vars.tiff";
 var stationFile = "station_data.json";
 
-function getColorResidues(d) {
-    return d < -4? '#f44242' :
-           d < -3  ? '#ed663d' :
-           d < -2  ? '#f78f40' :
-           d < -1  ? '#efe33e' :
-           d < 0   ? '#51ed40' :
-           d < 1   ? '#41ea90' :
-		   d < 2   ? '#40e8cc' :
-		   d < 3   ? '#3ebde0' :
-		   d < 4   ? '#3870d8' :
-		   '#3422bf';
+function getColorResidues(value){
+	var cs_def = {
+	positions: [0,0.25,0.5,0.75,1], colors:[
+	'#d7191c', '#fdae61', '#ffffbf', '#abd9e9', '#2c7bb6'
+	]};
+	let idx = cs_def.positions.findIndex(function(d){return d >= (value + 4)/8});
+	return cs_def.colors[idx];
 }
 function residuesColorScale(){
-var cs_def = {positions: [0,0.125,0.25,0.375,0.5,0.625,0.75,0.875,1], colors:[
-	'#f44242', '#ed663d', '#f78f40', '#efe33e', '#51ed40', '#41ea90', '#40e8cc', '#3ebde0', '#3870d8'
+
+var cs_def = {
+	positions: [0,0.25,0.5,0.75,1], colors:[
+	'#d7191c', '#fdae61', '#ffffbf', '#abd9e9', '#2c7bb6'
 	]};
 	var canvasColorScale = document.createElement('canvas');
 	canvasColorScale.width = 256;
