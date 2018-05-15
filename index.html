@@ -4,10 +4,10 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+		<title>Cálculos SIG en el navegador usando gpu.js</title>
 
 		<link rel="stylesheet" href="slides/css/reveal.css">
-		<link rel="stylesheet" href="slides/css/theme/black.css">
+		<link rel="stylesheet" href="slides/css/theme/blood.css">
 
 		<!-- Theme used for syntax highlighting of code -->
 		<link rel="stylesheet" href="slides/lib/css/zenburn.css">
@@ -24,8 +24,105 @@
 	<body>
 		<div class="reveal">
 			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
+				<section id="title"><h2>Cálculos SIG en el navegador usando gpu.js</h2>
+				<p>Roger Veciana i Rovira</p>
+			    <img src="slides/images/smc.png" width="200px"></section>
+				<section id="calculos_sig">
+					<h2>Cálculos SIG en el navegador</h2>
+					<p class="fragment" data-fragment-index="0">Datos vectoriales: turf.js, jsts</p>
+					<p class="fragment" data-fragment-index="1"><b>Datos raster</b></p>
+					<p class="fragment" data-fragment-index="2">geotiff.js + DIY</p>
+				</section>
+				<section id="usando_gpu"><h2>usando gpu<b style="font-size: 15px">.js</b></h2>
+					<img src="slides/images/gpu.png" height="150px">
+					<img src="slides/images/gpu2.gif" height="150px" ></section>
+				</section>
+				<section id="webgl"><h2>WebGL</h2>
+					<img src="slides/images/webgl.png" height="200px" class="fragment" data-fragment-index="0">
+					<img src="slides/images/webgl2.jpg" height="200px" class="fragment" data-fragment-index="1">
+					<img src="slides/images/webgl3.jpg" height="200px" class="fragment" data-fragment-index="2">
+				</section>
+				<section id="gpgpu"><h2>GPGPU</h2>
+					<pre class="fragment" data-fragment-index="0"><code>
+<script id="shader-fs" type="x-shader/x-fragment">
+	precision mediump float;
+	varying vec4 vColor;
+	void main(void) {
+		gl_FragColor = vColor;
+	}
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+	attribute vec3 aVertexPosition;
+	attribute vec4 aVertexColor;
+	uniform mat4 uMVMatrix;
+	uniform mat4 uPMatrix;
+	varying vec4 vColor;
+	void main(void) {
+		gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vColor = aVertexColor;
+	}
+</script>
+					</code></pre>
+				</section>
+
+				<section id="gpujs"><h2>usando gpu.js</h2>
+					<img src="slides/images/gpujs.png"></section>
+				<section id="gpujs2"><h2>gpu.js</h2>
+					<pre><code>
+const gpu = new GPU();
+
+const matMult = gpu.createKernel(function(a, b) {
+	var sum = 0;
+	for (var i = 0; i < 512; i++) {
+		sum += a[this.thread.y][i] * b[i][this.thread.x];
+	}
+	return sum;
+}).setOutput([512, 512]);
+
+const c = matMult(a, b);
+				</code></pre>
+				</section>
+				<section id="gpujs3"><h2>gpu.js</h2>
+					<ul>
+						<li class="fragment" data-fragment-index="0">Funciones matemáticas GLSL, casi idénticas a JavaScript</li>
+						<li class="fragment" data-fragment-index="1">Salida directamente objeto canvas</li>
+						<li class="fragment" data-fragment-index="2">Compatibilidad CPU</li>
+						<li class="fragment" data-fragment-index="3">Software inestable</li>
+						<li class="fragment" data-fragment-index="4">Idea de futuro (turbo.js, gpgpu.js, etc)</li>
+					</ul>
+				</section>
+			<section>
+				<section id="ejemplo"><h2>Ejemplo práctico</h2>
+					<h4>Regresión multilineal con residuos para el cálculo de temperatura</h4>
+				</section>
+				<section id="ejemplo2">
+					<h3>El cálculo</h3>
+					<p>\[\begin{aligned}
+					temperatura &amp; = \beta_{0} + \beta_{1} * altitud + \beta_{2} * distancia
+\end{aligned} \]</p>
+					<p class="fragment">Fórmula matricial:
+							\[\hat{\beta}=(X^{T}X)^{-1}X^{T}y\\
+							\hat{y}=X\hat{\beta}\]
+					</p>
+					<p class="fragment">numeric.js</p>
+					
+				</section>
+				<section id="ejemplo3">
+					<h3>Residuos</h3>
+					<p>
+							\[e=y-\hat{y}\]
+					</p>
+					<div class="fragment">
+					<p>Interpolación por inverso de la distancia</p>
+					<img src="slides/images/inverse.png" width=300>
+					</div>
+					
+				</section>
+			</section>
+			<section id="ejemplo4">
+				<h3><a href="ml">ejemplo</a></h3>
+			</section>
 			</div>
 		</div>
 
@@ -37,7 +134,23 @@
 			// - https://github.com/hakimel/reveal.js#configuration
 			// - https://github.com/hakimel/reveal.js#dependencies
 			Reveal.initialize({
+				
+				parallaxBackgroundImage: 'slides/images/background.jpg',
+				parallaxBackgroundSize: '2000px 1270px', // CSS syntax, e.g. "2100px 900px" - currently only pixels are supported (don't use % or auto)
+				parallaxBackgroundHorizontal: 20,
+				parallaxBackgroundVertical: 20,
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				transition: 'slide',
+				math: {
+					// mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js',
+					config: 'TeX-AMS_HTML-full'
+				},
 				dependencies: [
+					{ src: 'slides/plugin/math/math.js', async: true },
 					{ src: 'slides/plugin/markdown/marked.js' },
 					{ src: 'slides/plugin/markdown/markdown.js' },
 					{ src: 'slides/plugin/notes/notes.js', async: true },
