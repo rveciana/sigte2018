@@ -45,7 +45,7 @@
 					<img src="slides/images/webgl3.jpg" height="200px" class="fragment" data-fragment-index="2">
 				</section>
 				<section id="gpgpu"><h2>GPGPU</h2>
-					<pre class="fragment" data-fragment-index="0"><code>
+					<pre><code>
 <script id="shader-fs" type="x-shader/x-fragment">
 	precision mediump float;
 	varying vec4 vColor;
@@ -91,7 +91,7 @@ const c = matMult(a, b);
 						<li class="fragment" data-fragment-index="1">Salida directamente objeto canvas</li>
 						<li class="fragment" data-fragment-index="2">Compatibilidad CPU</li>
 						<li class="fragment" data-fragment-index="3">Software inestable</li>
-						<li class="fragment" data-fragment-index="4">Idea de futuro (turbo.js, gpgpu.js, etc)</li>
+						<li class="fragment" data-fragment-index="4">Idea de futuro (WebCLGL, turbo.js, gpgpu.js, etc)</li>
 					</ul>
 				</section>
 			<section>
@@ -131,6 +131,11 @@ const c = matMult(a, b);
 						<li>Python: ~50 s</li>
 						<li>Python + Cython: ~4 s</li>
 						<li>GPU.js: ~1 s</li>
+					</ul>
+					<ul>
+						<li>1000x1000 píxeles</li>
+						<li>3 cálculos de matrices</li>
+						<li>3 capas a representar</li>
 					</ul>
 				</section>
 			</div>
